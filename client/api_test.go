@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Sylabs Inc. All rights reserved.
+// Copyright (c) 2018-2024, Sylabs Inc. All rights reserved.
 // This software is licensed under a 3-clause BSD license. Please consult the
 // LICENSE.md file distributed with the sources of this project regarding your
 // rights to use or distribute this software.
@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	jsonresp "github.com/sylabs/json-resp"
@@ -576,6 +577,36 @@ func Test_createEntity(t *testing.T) {
 				t.Errorf("Got created entity %v - expected %v", entity, tt.expectEntity)
 			}
 		})
+	}
+}
+
+type testTransport struct{}
+
+func (tr *testTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		Body:       io.NopCloser(strings.NewReader("teststring")),
+		StatusCode: http.StatusOK,
+	}, nil
+}
+
+// Test_failedCreateEntity tests JSON unmarshallng error handling.
+func Test_failedCreateEntity(t *testing.T) {
+	const testEntityName = "testentity1"
+
+	testHTTPClient := &http.Client{
+		Transport: &testTransport{},
+	}
+
+	c, err := NewClient(&Config{
+		BaseURL:    "https://library",
+		HTTPClient: testHTTPClient,
+	})
+	if err != nil {
+		t.Fatalf("Error initializing test client: %v", err)
+	}
+
+	if _, err := c.createEntity(context.Background(), testEntityName); err == nil {
+		t.Fatal("Unexpected success")
 	}
 }
 
